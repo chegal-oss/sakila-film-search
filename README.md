@@ -10,9 +10,19 @@ CLI application for searching films in the `sakila` database with filters by cat
 
 ## Installation
 
+macOS / Linux:
+
 ```bash
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Windows `cmd`:
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
 pip install -r requirements.txt
 ```
 
@@ -23,21 +33,30 @@ The project reads environment variables from the `.env` file.
 Minimum required variables:
 
 ```env
-DB_HOST=ich-db.edu.itcareerhub.de
+DB_HOST=your-mysql-host
 DB_PORT=3306
-DB_NAME=sakila
-DB_USER=ich1
-DB_PASSWORD=password
-MONGO_URI=mongodb://user:password@host/?readPreference=primary&ssl=false&authMechanism=DEFAULT&authSource=db
-MONGO_DATABASE=ich_edit
-MONGO_COLLECTION=final_project_121225ptm_serg
+DB_NAME=your-database-name
+DB_USER=your-mysql-user
+DB_PASSWORD=your-mysql-password
+MONGO_URI=mongodb://your-user:your-password@your-host/?readPreference=primary&ssl=false&authMechanism=DEFAULT&authSource=your-auth-db
+MONGO_DATABASE=your-mongo-database
+MONGO_COLLECTION=your-mongo-collection
 ```
 
 ## Run
 
+macOS / Linux:
+
 ```bash
 source .venv/bin/activate
-python3 main.py
+python main.py
+```
+
+Windows `cmd`:
+
+```bat
+.venv\Scripts\activate.bat
+python main.py
 ```
 
 ## Features
