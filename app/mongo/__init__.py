@@ -1,3 +1,3 @@
-from .history import PopularQuery, SearchHistoryRepository
+from .history import PopularQuery, MongoHistoryConnection
 
-__all__ = ["PopularQuery", "SearchHistoryRepository"]
+__all__ = ["PopularQuery", "MongoHistoryConnection"]

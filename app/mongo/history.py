@@ -17,14 +17,41 @@ class PopularQuery:
     last_searched_at: datetime
 
 
-class SearchHistoryRepository:
+class MongoHistoryConnection:
     def __init__(self):
+        self._client: MongoClient | None = None
+        self._collection: Collection | None = None
+
+    def __enter__(self) -> MongoHistoryConnection:
+        return self.connect()
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+
+    def connect(self) -> MongoHistoryConnection:
+        if self._client is not None:
+            return self
+
         self._client = MongoClient(MONGO_URI)
-        self._collection: Collection = self._client[MONGO_DATABASE][MONGO_COLLECTION]
+        self._collection = self._client[MONGO_DATABASE][MONGO_COLLECTION]
         try:
             self._collection.create_index([("query", DESCENDING), ("searched_at", DESCENDING)])
         except PyMongoError:
             pass
+        return self
+
+    def close(self) -> None:
+        if self._client is None:
+            return
+        self._client.close()
+        self._client = None
+        self._collection = None
+
+    @property
+    def collection(self) -> Collection:
+        if self._collection is None:
+            self.connect()
+        return self._collection
 
     def save_query(self, query: str) -> None:
         normalized_query = query.strip()
@@ -32,13 +59,13 @@ class SearchHistoryRepository:
             return
 
         try:
-            self._collection.insert_one({"query": normalized_query, "searched_at": datetime.now(UTC)})
+            self.collection.insert_one({"query": normalized_query, "searched_at": datetime.now(UTC)})
         except PyMongoError:
             return
 
     def get_popular_queries(self, limit: int = 5) -> list[PopularQuery]:
         try:
-            items = self._collection.aggregate(
+            items = self.collection.aggregate(
                 [
                     {"$match": {"query": {"$exists": True, "$ne": ""}}},
                     {
@@ -71,6 +98,6 @@ class SearchHistoryRepository:
 
     def clear_queries(self) -> None:
         try:
-            self._collection.delete_many({})
+            self.collection.delete_many({})
         except PyMongoError:
             return

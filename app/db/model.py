@@ -51,9 +51,12 @@ class Film(Record):
 
 @dataclass
 class Category(Record):
+    POPULAR: ClassVar[int] = -1
+    ALL: ClassVar[int] = 0
     SQL_QUERY = """
         select category_id, name from category 
-        union select 0, 'All' 
+        union select 0, 'All'
+        union select -1, "Popular"
         order by category_id
     """
     category_id: int

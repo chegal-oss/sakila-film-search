@@ -20,3 +20,5 @@ MYSQL_CONFIG = {
 }
 
 MONGO_URI = _require_env("MONGO_URI")
+MONGO_DATABASE = _require_env("MONGO_DATABASE")
+MONGO_COLLECTION = _require_env("MONGO_COLLECTION")

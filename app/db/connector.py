@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generator
+from typing import Generator, Any
 
 import pymysql
 
@@ -42,7 +42,7 @@ class MySQLConnector(Connector):
         logger.debug("Connection established")
         return self
 
-    def execute(self, query: str, params = None) -> list[dict]:
+    def execute(self, query: str, params = None) -> tuple[tuple[Any, ...], ...]:
         if self.__connection and self.__connection.open:
             logger.debug(f"Execute query: {query} Params: {params}")
             cursor = self.__connection.cursor()
@@ -52,7 +52,7 @@ class MySQLConnector(Connector):
             finally:
                 cursor.close()
         else:
-            raise SakilaError("Connection not established")
+            raise ValueError("Connection not established")
 
 def connect(connection_type: type[Connector]) -> Connector:
     return connection_type()

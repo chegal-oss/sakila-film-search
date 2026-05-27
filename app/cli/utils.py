@@ -1,6 +1,6 @@
 def color_text(text: str, fg:str=None, bg:str=None) -> str:
     fg_colors = {"black": 30,"red": 31,"green": 32,"yellow": 33,"blue": 34,
-        "magenta": 35," cyan": 36,"white": 37,
+        "magenta": 35,"cyan": 36,"white": 37,
     }
 
     bg_colors = {
@@ -20,6 +20,20 @@ def color_text(text: str, fg:str=None, bg:str=None) -> str:
         return text
 
     return f"\033[{';'.join(codes)}m{text}\033[0m"
+
+
+def sakila_banner() -> str:
+    banner = "\n".join(
+        [
+            "  ____        _    _ _        _      ____                           _     ",
+            " / ___|  __ _| | _(_) | __ _ / |    / ___|  ___  __ _ _ __ ___ ___ | |__  ",
+            " \\___ \\ / _` | |/ / | |/ _` || |____\\___ \\ / _ \\/ _` | '__/ __/ _ \\| '_ \\ ",
+            "  ___) | (_| |   <| | | (_| || |_____|__) |  __/ (_| | | | (_| (_) | | | |",
+            " |____/ \\__,_|_|\\_\\_|_|\\__,_||_|    |____/ \\___|\\__,_|_|  \\___\\___/|_| |_|",
+        ]
+    )
+    return color_text(banner, "cyan")
+
 
 def dict_to_color_str(d: dict) -> str:
     return ", ".join(f"{color_text(k.capitalize() if i == 0 else k, "magenta")} - '{color_text(v, "yellow")}'" for i, (k,v) in enumerate(d.items()))

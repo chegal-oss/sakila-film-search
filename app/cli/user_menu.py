@@ -50,7 +50,8 @@ class UserMenu:
             print(title + "\n" + "\n".join(string_list) + "\n" + footer)
 
         while True:
-            user_input = input(prompt + " (q - exit): ")
+            prompt_text = utils.color_text(f"{prompt} (q - exit): ", "cyan")
+            user_input = input(prompt_text)
             if user_input.lower() == "q":
                 return self.CHOICE_EXIT
             try:
@@ -59,7 +60,7 @@ class UserMenu:
                     return menu_number - 1
                 raise ValueError("Incorrect number")
             except ValueError as e:
-                print("Enter correct number or 'q'")
+                print(utils.color_text("Enter correct number or 'q'", "red"))
                 logger.debug(e)
 
 

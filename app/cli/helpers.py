@@ -3,24 +3,31 @@ from app.cli.user_menu import UserMenu, MenuItem
 from app.db.model import Category, Year, Film
 from app.db.repository import SakilaRepo
 from app.logger import logger
+from app.mongo import MongoHistoryConnection
 
 
 class IOHelper:
     USER_SEARCH_HISTORY = {}
 
-    def __init__(self, repo: SakilaRepo):
+    def __init__(self, repo: SakilaRepo, history: MongoHistoryConnection):
         self.__repo = repo
         self.__category: Category | None = None
         self.__years: Year | None = None
         self.__search_title: str | None = None
+        self.__history = history
 
     def main_loop(self):
-        logger.info("UI loop started")
+        logger.debug("UI loop started")
+        print(utils.sakila_banner())
         while True:
             self._fill_category()
             if not self.__category:
                 logger.debug("Category selection canceled, exiting UI loop")
                 break
+            if self.__category.category_id == Category.POPULAR:
+                self._print_popular_queries()
+                continue
+
 
             self._fill_years()
             if not self.__years:
@@ -28,11 +35,9 @@ class IOHelper:
                 continue
 
             self._fill_search_title()
-            if self.__search_title is None:
-                logger.debug("Search input canceled, restarting year selection")
-                continue
 
-            self.print_page()
+
+        
 
 
     @classmethod
@@ -43,6 +48,24 @@ class IOHelper:
     @classmethod
     def add_to_history(cls, key: str, mes: str):
         cls.USER_SEARCH_HISTORY[key] = mes
+
+    def _print_popular_queries(self) -> None:
+        items = self.__history.get_popular_queries()
+        title = utils.color_text(f"{'POPULAR QUERIES':^80}", "black", "white")
+        print(title)
+
+        if not items:
+            print(utils.color_text(f"{'NO POPULAR QUERIES YET':^80}", "yellow"))
+            return
+
+        for idx, item in enumerate(items, start=1):
+            query = utils.color_text(item.query, "yellow")
+            count = utils.color_text(str(item.count), "green")
+            searched_at = utils.color_text(
+                item.last_searched_at.astimezone().strftime("%Y-%m-%d %H:%M"),
+                "blue",
+            )
+            print(f"{idx:>2}. {query}  [{count}]  {searched_at}")
 
 
     def _fill_category(self):
@@ -72,25 +95,29 @@ class IOHelper:
 
     def _fill_search_title(self) -> str | None:
         while True:
-            self.__search_title = input("Enter a title (Enter - all, q - exit): ")
+            prompt_text = utils.color_text("Enter a title (Enter - all, q - exit): ", "cyan")
+            self.__search_title = input(prompt_text)
             if self.__search_title.lower() == "q":
                 self.__search_title = None
                 logger.debug("Search input exited")
                 break
             self.add_to_history("title", self.__search_title if self.__search_title else "All")
             logger.info("Search title entered: %s", self.__search_title or "All")
-            self.print_page()
+            self._print_page()
 
 
 
-    def print_page(self) -> int:
-        logger.info(
+    def _print_page(self) -> int:
+        logger.debug(
             "Rendering films page: category=%s, years=%s, search=%s, page=%s",
             self.__category.name if self.__category else None,
             self.__years.period if self.__years else None,
             self.__search_title or "All",
             self.__repo.current_page,
         )
+        if self.USER_SEARCH_HISTORY:
+            self.__history.save_query(", ".join(f"{k} - {v}" for k, v in self.USER_SEARCH_HISTORY.items()))
+        self.print_user_history()
         while True:
             header = utils.color_text(" " * 5 + str(Film(0, "Title", 0, 0, 0, "Category", "Rating    ")),
                                       "black", "white")
@@ -110,20 +137,28 @@ class IOHelper:
             if not count:
                 print(utils.color_text(f"{'RESULTS NOT FOUND':^{len(header) - 17}}", "red"))
                 logger.info("No films found for current filters")
-            else:
-                menu_items = []
-                if self.__repo.current_page > 0:
-                    menu_items.append(MenuItem(-1, "Previous"))
-                if count == self.__repo.FILMS_ON_PAGE:
-                    menu_items.append(MenuItem(1, "Next"))
+                self.__repo.current_page = 0
+                logger.debug("Page reset to 0")
+                return count
 
-                if menu_items:
-                    menu_page = UserMenu("PAGES", menu_items, 1)
-                    page = menu_page.show("Select page")
-                    if page != UserMenu.CHOICE_EXIT:
-                        logger.debug("Paging action selected: %s", menu_page[page].name)
-                        self.__repo.current_page += menu_page[page].id
-                        logger.debug("Page changed to: %s", self.__repo.current_page)
+            menu_items = []
+            if self.__repo.current_page > 0:
+                menu_items.append(MenuItem(-1, "Previous"))
+            if count == self.__repo.FILMS_ON_PAGE:
+                menu_items.append(MenuItem(1, "Next"))
 
-            self.__repo.current_page = 0
-            logger.debug("Page reset to 0")
+            if not menu_items:
+                self.__repo.current_page = 0
+                logger.debug("Page reset to 0")
+                return count
+
+            menu_page = UserMenu("PAGES", menu_items, 1)
+            page = menu_page.show("Select page")
+            if page == UserMenu.CHOICE_EXIT:
+                self.__repo.current_page = 0
+                logger.debug("Page reset to 0")
+                return count
+
+            logger.debug("Paging action selected: %s", menu_page[page].name)
+            self.__repo.current_page += menu_page[page].id
+            logger.debug("Page changed to: %s", self.__repo.current_page)

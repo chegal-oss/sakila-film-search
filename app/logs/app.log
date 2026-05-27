@@ -1,7 +1,0 @@
-2026-05-27 18:18:52,167 - connector.py - DEBUG - 42 - Connection established
-2026-05-27 18:18:52,168 - helpers.py - INFO - 18 - UI loop started
-2026-05-27 18:18:52,168 - connector.py - DEBUG - 47 - Execute query: 
-        select category_id, name from category 
-        union select 0, 'All' 
-        order by category_id
-     Params: None
