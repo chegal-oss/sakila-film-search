@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, UTC
+from typing import Any
 
 from pymongo import DESCENDING, MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 
 from app.config import MONGO_COLLECTION, MONGO_DATABASE, MONGO_URI
+from app.logger import logger
 
 
 @dataclass
 class PopularQuery:
-    query: str
+    query: dict[str, Any]
     count: int
     last_searched_at: datetime
 
@@ -53,21 +55,22 @@ class MongoHistoryConnection:
             self.connect()
         return self._collection
 
-    def save_query(self, query: str) -> None:
-        normalized_query = query.strip()
-        if not normalized_query:
+    def save_query(self, query: dict[str, Any]) -> None:
+        if not query:
             return
 
         try:
-            self.collection.insert_one({"query": normalized_query, "searched_at": datetime.now(UTC)})
-        except PyMongoError:
+            self.collection.insert_one({"query": query, "searched_at": datetime.now(UTC)})
+            logger.debug("Search query saved: %s", query)
+        except PyMongoError as e:
+            logger.debug("Search query was not saved: %s", e)
             return
 
     def get_popular_queries(self, limit: int = 5) -> list[PopularQuery]:
         try:
             items = self.collection.aggregate(
                 [
-                    {"$match": {"query": {"$exists": True, "$ne": ""}}},
+                    {"$match": {"query": {"$exists": True, "$type": "object"}}},
                     {
                         "$group": {
                             "_id": "$query",
