@@ -25,7 +25,7 @@ class IOHelper:
                 logger.debug("Category selection canceled, exiting UI loop")
                 break
             if self.__category.category_id == Category.POPULAR:
-                self._print_popular_queries()
+                self._repeat_popular_query()
                 continue
 
 
@@ -49,30 +49,73 @@ class IOHelper:
     def add_to_history(cls, key: str, mes: str):
         cls.USER_SEARCH_HISTORY[key] = mes
 
-    def _print_popular_queries(self) -> None:
-        items = self.__history.get_popular_queries()
-        title = utils.color_text(f"{'POPULAR QUERIES':^80}", "black", "white")
-        print(title)
+    def _repeat_popular_query(self) -> None:
+        items = [
+            item for item in self.__history.get_popular_queries()
+            if self._parse_popular_query(item.query).get("category") != "Popular"
+        ]
 
         if not items:
             print(utils.color_text(f"{'NO POPULAR QUERIES YET':^80}", "yellow"))
             return
 
-        for idx, item in enumerate(items, start=1):
-            query = utils.color_text(item.query, "yellow")
-            count = utils.color_text(str(item.count), "green")
-            searched_at = utils.color_text(
-                item.last_searched_at.astimezone().strftime("%Y-%m-%d %H:%M"),
-                "blue",
-            )
-            print(f"{idx:>2}. {query}  [{count}]  {searched_at}")
+        menu_items = []
+        for idx, item in enumerate(items):
+            searched_at = item.last_searched_at.astimezone().strftime("%Y-%m-%d %H:%M")
+            menu_items.append(MenuItem(idx, f"{item.query} [{item.count}] {searched_at}"))
+
+        menu = UserMenu("POPULAR QUERIES", menu_items, 5)
+        if (idx := menu.show("Repeat query")) == UserMenu.CHOICE_EXIT:
+            return
+
+        self._run_popular_query(items[menu[idx].id])
+
+    @staticmethod
+    def _parse_popular_query(query: str) -> dict[str, str]:
+        parsed = {}
+        for part in query.split(", "):
+            key, separator, value = part.partition(" - ")
+            if separator:
+                parsed[key] = value
+        return parsed
+
+    def _run_popular_query(self, item) -> None:
+        filters = self._parse_popular_query(item.query)
+        category_name = filters.get("category")
+        years_period = filters.get("years")
+        title = filters.get("title", "All")
+
+        categories = list(self.__repo.get_category())
+        years = list(self.__repo.get_year())
+        category = next(
+            (category for category in categories if category.name == category_name and category.category_id != Category.POPULAR),
+            None,
+        )
+        year = next((year for year in years if year.period == years_period), None)
+
+        if category is None or year is None:
+            print(utils.color_text("Cannot repeat selected query", "red"))
+            logger.debug("Cannot repeat popular query: %s", item.query)
+            return
+
+        self.__category = category
+        self.__years = year
+        self.__search_title = "" if title == "All" else title
+        self.USER_SEARCH_HISTORY.clear()
+        self.add_to_history("category", self.__category.name)
+        self.add_to_history("years", self.__years.period)
+        self.add_to_history("title", title)
+        logger.info("Popular query selected: %s", item.query)
+        self._print_page()
 
 
     def _fill_category(self):
+        self.USER_SEARCH_HISTORY.clear()
         menu_category = UserMenu("CATEGORY", [MenuItem(c.category_id, c.name) for c in self.__repo.get_category()])
         while (idx := menu_category.show("Select category")) != UserMenu.CHOICE_EXIT:
             self.__category = Category(menu_category[idx].id, menu_category[idx].name)
-            self.add_to_history("category", self.__category.name)
+            if self.__category.category_id != Category.POPULAR:
+                self.add_to_history("category", self.__category.name)
             logger.info("Category selected: %s", self.__category.name)
             return
         self.__category = None
